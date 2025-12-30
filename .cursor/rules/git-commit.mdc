@@ -1,0 +1,162 @@
+---
+title: Git 提交日志规范
+description: Git 提交信息的格式规范和最佳实践
+scope: project
+priority: high
+---
+
+# Git 提交日志规范
+
+## 📝 提交信息格式
+
+采用 **Conventional Commits** 规范，格式如下：
+
+```
+<type>(<scope>): <description>
+
+<body>
+
+<footer>
+```
+
+### 🎯 类型 (Type)
+
+| 类型 | 说明 | 使用场景 |
+|------|------|----------|
+| `feat` | 新功能 | 新增智能体、API 端点、核心功能 |
+| `fix` | Bug 修复 | 修复逻辑错误、类型错误、运行时异常 |
+| `docs` | 文档更新 | README、API 文档、注释 |
+| `style` | 代码格式 | 代码格式化、命名规范、Lint 修复 |
+| `refactor` | 重构 | 代码结构调整，不改变外部行为 |
+| `perf` | 性能优化 | 缓存策略、算法优化、减少 API 调用 |
+| `test` | 测试相关 | 单元测试、集成测试 |
+| `chore` | 构建/工具 | 依赖更新、配置修改、构建脚本 |
+| `ci` | CI/CD | GitHub Actions、自动化流程 |
+| `revert` | 回滚 | 撤销之前的提交 |
+
+### 🔍 范围 (Scope)
+
+可选的模块范围，用于更精确的分类：
+
+- `agent` - 智能体相关 (intent, context, planner)
+- `service` - 服务层 (HA, LLM, Cache)
+- `api` - HTTP 接口层
+- `orchestrator` - 核心编排器
+- `types` - 类型定义
+- `config` - 配置文件
+- `docs` - 文档
+- `build` - 构建/依赖
+
+### ✍️ 描述 (Description)
+
+- 使用**中文**描述
+- 使用**祈使句**（动词开头），如："添加"、"修复"、"优化"
+- 首字母**小写**（类型后除外）
+- 结尾**不加**句号
+- 简洁明了，不超过 50 个字符
+
+### 📖 正文 (Body)
+
+可选，用于详细说明：
+- 使用中文
+- 每行不超过 72 个字符
+- 说明"为什么"而不是"做了什么"
+- 列出关键变更点
+
+### 🏷️ 页脚 (Footer)
+
+可选，用于元数据：
+- 关联 Issue: `Fixes #123`
+- 破坏性变更: `BREAKING CHANGE: 需要更新 .env 配置`
+
+## ✅ 优秀示例
+
+### 简单提交
+```
+feat: 添加缓存服务支持 Redis
+```
+
+### 带范围的提交
+```
+fix(agent): 修复意图识别的置信度阈值判断
+```
+
+### 带正文的提交
+```
+feat(orchestrator): 实现多智能体并行执行
+
+- Intent Agent 和 Context Agent 现在并行运行
+- 减少了 40% 的响应时间
+- 添加了执行超时保护 (5秒)
+```
+
+### 修复 Bug
+```
+fix(service): 修复 Home Assistant API 超时问题
+
+增加重试机制和指数退避策略，避免网络波动导致的失败
+```
+
+### 重构
+```
+refactor(types): 统一所有接口的响应格式
+
+将所有 API 响应标准化为 { success, data, timestamp } 格式
+```
+
+## ❌ 错误示例
+
+```
+# ❌ 太笼统
+fix: 修复问题
+
+# ❌ 使用过去时
+fixed: 添加了新功能
+
+# ❌ 英文描述
+feat: add cache service
+
+# ❌ 带句号
+feat: 添加缓存服务。
+
+# ❌ 太长
+feat: 这是一个非常长的提交信息，详细描述了每一个变更点，包括所有的技术细节和业务逻辑
+```
+
+## 🚀 提交前检查清单
+
+在执行 `git commit` 前，请确认：
+
+- [ ] 代码已通过 TypeScript 编译 (`pnpm build`)
+- [ ] 代码符合 Lint 规范 (`pnpm lint`)
+- [ ] 提交信息遵循上述规范
+- [ ] 没有提交敏感信息（API Key、Token）
+- [ ] `.env` 文件在 `.gitignore` 中
+
+## 🛠️ 实用命令
+
+### 查看提交历史
+```bash
+git log --oneline --graph
+```
+
+### 搜索特定类型的提交
+```bash
+git log --oneline --grep="feat:"
+```
+
+### 生成变更日志
+```bash
+git log --pretty=format:"%h %ad %s" --date=short
+```
+
+## 📚 参考资料
+
+- [Conventional Commits](https://www.conventionalcommits.org/)
+- [Angular Commit Convention](https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-format)
+
+---
+
+**最后更新**: 2025-12-30  
+**维护者**: @User  
+**版本**: 1.0.0

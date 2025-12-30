@@ -1,0 +1,434 @@
+---
+title: Home Assistant 集成规范
+description: HA API 的接入、安全和最佳实践
+scope: src/services/homeassistant.ts, src/agents/context.agent.ts
+priority: high
+---
+
+# Home Assistant 集成规范
+
+## 🔑 认证与访问令牌
+
+### 1. 获取长生命周期令牌
+```bash
+# 在 HA 中:
+# 用户配置 → 安全 → 长生命周期访问令牌
+# 创建新令牌，复制保存 (只显示一次)
+```
+
+### 2. 环境变量配置
+```bash
+# .env 文件
+HOME_ASSISTANT_URL=http://homeassistant.local:8123
+HOME_ASSISTANT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 3. 无效令牌处理
+```typescript
+const client = axios.create({
+  headers: {
+    "Authorization": `Bearer ${token}`
+  }
+});
+
+client.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      console.error("Token 无效，请检查 HA 配置");
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+## API 基础端点
+
+### 1. 获取所有状态
+```
+GET /api/states
+```
+返回: 所有实体的当前状态
+
+### 2. 获取单个实体状态
+```
+GET /api/states/{entity_id}
+返回: 404 表示不存在
+```
+
+### 3. 调用服务
+```
+POST /api/services/{domain}/{service}
+Body: { "entity_id": "...", ...其他参数 }
+```
+
+## 实体识别与管理
+
+### 1. 实体 ID 格式
+```
+<domain>.<object_id>
+示例:
+- light.living_room
+- switch.water_heater  
+- climate.thermostat
+- sensor.temperature_hall
+```
+
+### 2. 域名 Domain 说明
+| Domain | 类型 | 示例用途 |
+|--------|------|----------|
+| `light` | 灯光 | 开关调光 |
+| `switch` | 开关 | 插座、热水器 |
+| `climate` | 温控 | 空调、地暖 |
+| `sensor` | 传感器 | 温度、湿度 |
+| `fan` | 风扇 | 排气扇 |
+| `cover` | 覆盖物 | 窗帘、门 |
+| `lock` | 锁 | 门锁 |
+
+### 3. 白名单安全策略
+```typescript
+// 所有可控制实体必须显式声明
+const ALLOWED_DOMAINS = [
+  "light",
+  "switch", 
+  "climate",
+  "fan",
+  "cover"
+];
+
+function validateEntity(entityId: string): boolean {
+  const domain = entityId.split(".")[0];
+  return ALLOWED_DOMAINS.includes(domain);
+}
+```
+
+## 设备状态提取
+
+### 1. 常用状态值
+```typescript
+// light, switch, fan, cover
+state: "on" | "off"
+
+// cover
+state: "open" | "opening" | "closing" | "closed"
+
+// lock
+state: "locked" | "unlocked"
+
+// sensor
+state: "数值字符串"
+```
+
+### 2. 属性提取
+```typescript
+const device = {
+  entityId: entity.entity_id,
+  name: entity.attributes.friendly_name,
+  state: entity.state,
+  // 常用属性
+  brightness: entity.attributes.brightness,  // 灯光亮度
+  temperature: entity.attributes.temperature, // 温度
+  humidity: entity.attributes.humidity,       // 湿度
+  unit_of_measurement: entity.attributes.unit_of_measurement, // 单位
+};
+```
+
+### 3. 环境状态感知
+```typescript
+// 时间
+function getTimeOfDay(): "morning" | "afternoon" | "evening" | "night" {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 18) return "afternoon"; 
+  if (hour >= 18 && hour < 22) return "evening";
+  return "night";
+}
+
+// 人在检测
+function detectPresence(devices: DeviceState[]): boolean {
+  const motionSensors = devices.filter(d => 
+    d.entityId.includes("person.") || 
+    d.entityId.includes("binary_sensor.motion")
+  );
+  return motionSensors.some(d => d.state === "on");
+}
+
+// 温度/湿度
+function extractAverageTemperature(devices: DeviceState[]): number | null {
+  const temps = devices
+    .filter(d => d.entityId.includes("temperature"))
+    .map(d => parseFloat(d.state))
+    .filter(n => !isNaN(n));
+  
+  if (temps.length === 0) return null;
+  return Math.round((temps.reduce((a,b) => a+b) / temps.length) * 10) / 10;
+}
+```
+
+## 服务调用规范
+
+### 1. 基本服务格式
+```typescript
+// 开启设备
+{
+  service: "switch.turn_on",
+  entity_id: "switch.water_heater"
+}
+
+// 关闭设备  
+{
+  service: "switch.turn_off",
+  entity_id: "switch.light"
+}
+
+// 特定灯光
+{
+  service: "light.turn_on",
+  entity_id: "light.living_room",
+  brightness_pct: 80  // 80%亮度
+}
+```
+
+### 2. 批量执行
+```typescript
+// 串行执行 (推荐，更安全)
+for (const step of plan.steps) {
+  try {
+    await ha.callService(step.service, step.entityId);
+    // 小延迟避免HA过载
+    await sleep(200);
+  } catch (error) {
+    results.push({ error, entityId: step.entityId });
+  }
+}
+```
+
+### 3. 错误处理
+```typescript
+try {
+  await ha.callService("switch.turn_on", "switch.water_heater");
+} catch (error) {
+  if (error.response?.status === 404) {
+    console.error("实体不存在");
+  } else if (error.response?.status === 500) {
+    console.error("设备执行失败");
+  }
+}
+```
+
+## 性能优化
+
+### 1. 减少 API 调用
+```typescript
+// ❌ 避免: 每次需求都调用 api/states
+async function getInitialState() {
+  const states = await ha.getStates(); // 一次获取所有
+  return states;
+}
+
+// ✅ 缓存状态快照
+const CACHE_TTL = 5 * 60 * 1000; // 5分钟
+let statesCache: DeviceState[] | null = null;
+let cacheTime = 0;
+
+async function getCachedStates(): Promise<DeviceState[]> {
+  if (statesCache && Date.now() - cacheTime < CACHE_TTL) {
+    return statesCache;
+  }
+  statesCache = await ha.getStates();
+  cacheTime = Date.now();
+  return statesCache;
+}
+```
+
+### 2. 按需查询
+```typescript
+// 只需要开关状态，调用特定实体而非全部
+const desiredEntityIds = [
+  "switch.water_heater",
+  "switch.bathroom_heater", 
+  "light.bathroom"
+];
+
+const states = await ha.getMultipleEntitiesState(desiredEntityIds);
+```
+
+## 健康检查
+
+### 1. 连接验证
+```typescript
+async function healthCheck(): Promise<boolean> {
+  try {
+    const response = await client.get("/api/");
+    return response.status === 200;
+  } catch {
+    return false;
+  }
+}
+```
+
+### 2. 系统信息
+```typescript
+const config = await client.get("/api/config");
+// 内部版本: config.data.core_version
+// 地区: config.data.timezone
+```
+
+## 安全原则
+
+### 1. 不要信任所有设备
+```typescript
+// ❌ 危险: 允许任意实体
+async function unsafeControl(entityId: string) {
+  await ha.callService("anything.turn_on", entityId); 
+}
+
+// ✅ 安全: 白名单检查
+async function safeControl(entityId: string, service: string) {
+  if (!validateEntity(entityId)) {
+    throw new Error("实体不在白名单");
+  }
+  if (!validateService(service)) {
+    throw new Error("服务不在白名单");
+  }
+  return await ha.callService(service, entityId);
+}
+```
+
+### 2. 敏感操作保护
+```typescript
+const SENSITIVE_SERVICES = [
+  "lock.unlock",
+  "valve.open",
+  "dangerous.action"
+];
+
+function requiresConfirmation(service: string, entityId: string): boolean {
+  if (SENSITIVE_SERVICES.some(s => service.startsWith(s))) {
+    return true;
+  }
+  if (entityId.includes("gas") || entityId.includes("dangerous")) {
+    return true;
+  }
+  return false;
+}
+```
+
+### 3. 速率限制
+```typescript
+// 避免过快调用 HA API
+const MIN_INTERVAL = 100; // ms
+let lastCall = 0;
+
+async function rateLimitedCall(service: string, entity: string) {
+  const now = Date.now();
+  if (now - lastCall < MIN_INTERVAL) {
+    await sleep(MIN_INTERVAL - (now - lastCall));
+  }
+  lastCall = Date.now();
+  return await ha.callService(service, entity);
+}
+```
+
+## 调试与日志
+
+### 1. 环境变量
+```bash
+# 开发环境显示详细日志
+export NODE_ENV=development
+```
+
+### 2. 日志格式
+```typescript
+console.log(`[HA] 获取状态: ${entityId}`);
+console.log(`[HA] 执行服务: ${service} on ${entityId}`);
+console.log(`[HA] ✅ 成功: ${result}`);
+console.error(`[HA] ❌ 失败: ${error.message}`);
+```
+
+### 3. 数据收集
+```typescript
+// 用于调试: 导出实体列表
+async function debugExportEntities() {
+  const states = await ha.getStates();
+  const output = states.map(s => ({
+    entity_id: s.entityId,
+    name: s.entityName,
+    state: s.state,
+    domain: s.entityId.split(".")[0]
+  }));
+  console.log(JSON.stringify(output, null, 2));
+  return output;
+}
+```
+
+## 实体信息收集
+
+```bash
+# 请运行此命令获取你的实体列表
+# curl -H "Authorization: Bearer YOUR_TOKEN" \
+#      http://homeassistant.local:8123/api/states
+```
+
+### 常见实体示例
+```typescript
+// 热水器
+"switch.water_heater"
+"switch.gas_water_heater"
+
+// 浴霸/暖风
+"switch.bathroom_heater"
+"fan.bathroom_vent"
+
+// 灯光
+"light.bathroom"
+"light.living_room"
+
+// 温度传感器
+"sensor.temperature_living_room"
+"sensor.humidity_bathroom"
+
+// 人在检测
+"binary_sensor.motion_bathroom"
+"binary_sensor.occupancy_living_room"
+```
+
+## 演示模式
+
+如果未配置 HA Token，系统会自动进入演示模式，此时:
+- ✅ 所有 API 调用正常
+- ✅ 不会真实操作设备
+- ✅ 记录"模拟执行"日志
+- ✅ 适合开发环境
+
+---
+
+## 快速检查清单
+
+```bash
+# 1. Token 有效
+curl -H "Authorization: Bearer $HA_TOKEN" \
+     $HA_URL/api/states
+
+# 2. 实体存在
+curl ... | grep "switch.water_heater"
+
+# 3. 可控制
+# 测试手动调用
+curl -X POST \
+  -H "Authorization: Bearer $HA_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"entity_id": "switch.water_heater"}' \
+  $HA_URL/api/services/switch/turn_on
+```
+
+**笔记**:
+- 测试环境推荐使用 Demo 模式
+- 生产环境必须完整校验
+- 小爱音箱只能用 Webhook 方式触发
+
+**已实现**:
+- ✅ 基础服务层 (src/services/homeassistant.ts)
+- ✅ 状态提取 (src/agents/context.agent.ts)
+- ✅ 批量执行
+- ⏳ 实体白名单配置待添加

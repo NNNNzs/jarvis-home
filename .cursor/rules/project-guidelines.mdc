@@ -1,0 +1,285 @@
+---
+title: JARVIS 项目开发指南
+description: 多智能体智能家居系统的技术规范和开发指南
+scope: project
+priority: high
+---
+
+# JARVIS 项目开发指南
+
+## 🎯 项目概述
+
+**Just A Rather Very Intelligent System (JARVIS)** 是一个基于 **Node.js + TypeScript** 的多智能体协同系统，用于智能家居控制。
+
+- **核心技术**: LangChain + LangGraph + Express
+- **核心功能**: 自然语言理解 → 意图识别 → 状态感知 → 行为规划 → 设备执行
+- **主要集成**: Home Assistant (状态中枢) + OpenAI (LLM)
+
+## 📐 代码规范
+
+### 1. 语言和格式
+- ✅ 使用 **TypeScript**，开启严格模式 (`strict: true`)
+- ✅ 使用 **ES Modules** (`import/export`)，不是 CommonJS
+- ✅ 使用 **ES2022** 或更高语法
+- ✅ 文件后缀: `.ts` (源码) 和 `.js` (编译后，不要手动编辑)
+
+### 2. 命名规范
+```typescript
+// ✅ 好的命名
+const homeAssistantService: HomeAssistantService;
+const intentAgent: IntentAgent;
+const generatePlan(): Promise<Plan>
+
+// ❌ 避免
+const haService: any;      // 不要使用 any
+const processIntent()      // 不够语义化
+```
+
+- **类名**: `PascalCase` (Example: `Orchestrator`, `IntentAgent`)
+- **变量/函数名**: `camelCase` (example: `generatePlan`, `userInput`)
+- **常量**: `UPPER_SNAKE_CASE` (example: `DEFAULT_TIMEOUT`)
+- **枚举值**: `UPPER_SNAKE_CASE` (example: `IntentType.BATH_PREPARE`)
+
+### 3. 项目结构
+```
+src/
+├── agents/          # 智能体模块
+│   ├── intent.ts    # 意图识别
+│   ├── context.ts   # 状态感知  
+│   └── planner.ts   # 行为规划
+├── services/        # 服务层 (外部交互)
+│   ├── homeassistant.ts
+│   ├── llm.ts
+│   └── cache.ts
+├── api/             # HTTP 接口
+│   ├── routes.ts
+│   └── middleware.ts
+├── types/           # 类型定义
+│   └── index.ts
+├── orchestrator.ts  # 核心协调器
+└── app.ts          # 应用入口
+```
+
+## 🏗️ 架构原则
+
+### 1. 单一职责
+每个文件只负责一个明确的功能:
+- `services/` 纯粹处理与外部系统的 API 交互
+- `agents/` 纯粹处理业务逻辑和决策
+- `orchestrator.ts` 负责编排流程，不处理细节
+
+### 2. 不可变性和类型安全
+```typescript
+// ✅ 使用 Zod 保证运行时安全
+const InputSchema = z.object({
+  message: z.string().min(1)
+});
+type UserInput = z.infer<typeof InputSchema>;
+
+// ✅ 使用枚举定义常量
+export enum IntentType {
+  BATH_PREPARE = "bath_prepare",
+  SLEEP = "sleep",
+  // ...
+}
+```
+
+### 3. 错误处理和可恢复性
+- 所有外部 API 调用都要有 try-catch
+- LLM 失败必须有规则兜底
+- 不要让系统因单个组件失败而崩溃
+
+### 4. 日志和可观测性
+```typescript
+console.log(`[Orchestrator] 识别意图: ${intent.intent}`);
+console.error(`[Error] HA 调用失败: ${error.message}`);
+```
+
+## 🔒 安全要求
+
+### 1. 环境变量
+- **绝不** 提交 `.env` 文件到版本控制
+- 使用 `.env.example` 作为模板
+- API Key 和 Token 必须放在 `process.env`
+
+### 2. 输入验证
+```typescript
+// ✅ 验证所有输入
+const input = UserInputSchema.parse(req.body);
+```
+
+### 3. 设备控制安全
+- 白名单机制，只控制声明过的设备
+- 重要操作(燃气、门锁)需二次确认
+- 所有操作必须可追溯
+
+## 💡 开发流程
+
+### 1. 初始化开发环境
+```bash
+pnpm install
+# 创建 .env 文件并填入配置
+cp .env.example .env
+```
+
+### 2. 开发启动
+```bash
+pnpm dev      # 开发模式，热重载
+pnpm build    # 编译 TypeScript
+pnpm start    # 生产运行
+```
+
+### 3. 测试接口 (Demo 模式 无需 HA)
+```bash
+# 意图识别测试
+curl -X POST http://localhost:3000/api/demo \
+  -H "Content-Type: application/json" \
+  -d '{"message": "我要洗澡了"}'
+
+# 系统状态
+curl http://localhost:3000/api/status
+```
+
+### 4. 提交前检查
+- 所有类型定义正确 (无 `any`)
+- 错误处理妥当
+- 日志清晰
+- 数据库/缓存操作安全
+
+## 🔄 关键工作流程
+
+```mermaid
+用户输入 → Intent Agent → Context Agent → Planner Agent → 执行 → 缓存
+     ↓          ↓            ↓              ↓            ↓       ↓
+   验证      意图识别     状态获取      计划生成     HA API   存储
+```
+
+### 各智能体职责
+
+**Intent Agent**:
+- 输入: 纯文本
+- 输出: 标准化意图 (`{intent, confidence, rawInput}`)
+- 手段: 规则优先 + LLM 精确
+
+**Context Agent**:  
+- 定时获取 HA 状态快照
+- 提取环境信息 (时间、温度、人在)
+- 输出: `ContextState`
+
+**Planner Agent**:
+- 输入: 意图 + 上下文
+- 尝试缓存匹配
+- 输出: 可执行计划 (`Plan`)
+- 不直接执行
+
+**Orchestrator**:
+- 统一入口
+- 调度所有 Agent
+- 处理错误和兜底
+
+## 🌐 API 设计
+
+### 统一响应格式
+```typescript
+{
+  "success": true,
+  "data": {...},
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### 主要端点
+- `POST /api/intent` - 处理用户意图
+- `GET /api/status` - 系统状态
+- `GET /api/health` - 健康检查
+- `POST /api/demo` - 演示模式 (推荐开发时使用)
+- `POST /api/cache/clear` - 清空缓存
+
+## 🔍 调试技巧
+
+### 环境变量调试
+```bash
+export OPENAI_API_KEY=your_key
+export HOME_ASSISTANT_URL=http://homeassistant.local:8123
+export NODE_ENV=development
+```
+
+### 日志等级
+```typescript
+// 开发日志
+console.log(`[Debug] ${details}`);
+
+// 警告
+console.warn(`⚠️  ${warning}`);
+
+// 错误
+console.error(`[Error] ${error}`);
+```
+
+### Demo 模式
+不配置 HA Token 时，系统会进入演示模式，仅模拟执行，非常适合前端开发调试。
+
+## 📋 配置文件说明
+
+### tsconfig.json
+- `strict: true` - 强制类型安全
+- `module: "commonjs"` - 兼容性 (可升级到 ESM)
+- `outDir: "./dist"` - 编译输出目录
+
+### package.json
+- `type: "module"` - 使用 ES Modules
+- 包含 `dev` 和 `start` 脚本
+
+### 环境变量 (.env)
+```ini
+# 必需
+OPENAI_API_KEY=sk-...
+HOME_ASSISTANT_TOKEN=xxx (可选，demo模式不需要)
+
+# 可选
+CACHE_STRATEGY=context_aware
+NODE_ENV=development
+```
+
+## 🚨 常见陷阱
+
+1. **不要直接修改 `dist/` 文件夹** - 这是编译产物
+2. **不要用 `any` 类型** - 用 Zod 或明确接口
+3. **忘记错误处理** - LLM 和 HA 都不稳定
+4. **硬编码配置** - 全部走环境变量
+5. **单线程阻塞** - 异步所有外部调用
+
+## 🔧 依赖更新策略
+
+```bash
+# 只升级次要版本
+pnpm update --latest
+# 运行测试确保兼容
+
+# 重大版本升级手动检查
+# 1. CHANGELOG
+# 2. API breaking changes  
+# 3. 更新 interfaces.ts
+```
+
+## 📝 Git 提交规范
+
+本项目使用 **Conventional Commits** 规范，详见 `.cursor/rules/git-commit.mdc`。
+
+**快速参考**：
+- `feat(scope): 描述` - 新功能
+- `fix(scope): 描述` - Bug 修复
+- `docs(scope): 描述` - 文档更新
+- `refactor(scope): 描述` - 代码重构
+
+**提交前检查**：
+```bash
+pnpm build    # 确保编译通过
+pnpm lint     # 确保代码规范
+```
+
+---
+
+**最后修改**: 2025-12-30  
+**维护者**: @User  
+**版本**: 1.0.0

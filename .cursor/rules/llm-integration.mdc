@@ -1,0 +1,286 @@
+---
+title: LLM 集成规范
+description: LangChain 和聊天模型使用的最佳实践
+scope: src/services/llm.ts, src/agents/
+priority: high
+---
+
+# LLM 集成规范
+
+## Prompt 工程原则
+
+### 1. 系统消息结构
+```typescript
+// ✅ 好的 System Prompt
+["system", `你是一个智能家居意图识别专家。
+
+规则:
+1. 必须输出JSON格式
+2. confidence 0-1之间
+3. 只输出JSON，无其他内容
+
+可用意图:
+- bath_prepare: 开启热水器、浴霸等
+- sleep: 关闭灯光、调温
+...`]
+```
+
+### 2. 少样本学习 (Few-Shot)
+```typescript
+// ✅ 提供示例
+用户: "我要洗澡了"
+输出: {"intent": "bath_prepare", "confidence": 0.95}
+```
+
+### 3. 映射必须严格
+```typescript
+// ✅ 使用枚举映射
+const IntentType = {
+  BATH_PREPARE: "bath_prepare",
+  // 保持一致
+}
+```
+
+## 错误处理与重试
+
+### 1. 三层容错
+```typescript
+async function processIntent(message: string): Promise<Intent> {
+  // 1. 快速失败: 规则匹配
+const quick = ruleMatch(message);
+  if (quick.confidence > 0.9) return quick;
+  
+  // 2. LLM 精确处理
+  try {
+    return await llm.recognizeIntent(message);
+  } catch (error) {
+    // 3. 兜底: 返回默认
+    return {
+      intent: "get_status",
+      confidence: 0.5,
+      rawInput: message
+    };
+  }
+}
+```
+
+### 2. 重试策略
+```typescript
+const model = new ChatOpenAI({
+  maxRetries: 3,
+  timeout: 10000,
+  // 失败自动重试，但总时间不会太长
+});
+```
+
+## JSON 响应处理
+
+### 1. 清理 Markdown
+LLM 调用后经常返回代码块:
+```json
+```json
+{"intent": "sleep"}
+```
+```
+
+```typescript
+function cleanJsonResponse(content: string): string {
+  return content
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
+}
+```
+
+### 2. 防御性解析
+```typescript
+try {
+  const parsed = JSON.parse(cleaned);
+  // 验证必须字段
+  if (!parsed.intent) throw new Error("Missing intent");
+  return parsed;
+} catch (e) {
+  // 失败时的降级处理
+}
+```
+
+## 令牌费用优化
+
+### 1. 上下文压缩
+```typescript
+// ❌ 避免: 发送完整设备列表
+const devices = await ha.getAllStates();
+
+// ✅ 推荐: 只发送必要的摘要
+const context = {
+  timeOfDay: getTimeOfDay(),
+  activeDevices: devices.filter(d => d.state === "on").length,
+  temperature: extractTemperature(devices)
+};
+```
+
+### 2. 缓存减少调用
+- 相同意图 → 缓存命中 → 无 LLM 调用
+- 上下文相似 → 修正计划 → 少量调用
+
+## 多模型支持
+
+### 1. 抽象接口
+```typescript
+interface ILLMService {
+  recognizeIntent(message: string): Promise<Intent>;
+  generatePlan(intent: Intent, context: ContextState): Promise<Plan>;
+}
+```
+
+### 2. 未来扩展
+- OpenAI (目前)
+- 阿里通义千问 (国内)
+- 自托管 Llama (隐私)
+
+## Rate Limiting & 限流
+
+### 启用场景
+```typescript
+// 生产环境必须
+if (process.env.NODE_ENV === "production") {
+  app.use(rateLimitMiddleware(10, 60000));
+}
+```
+
+### 处理超限
+```json
+{
+  "success": false,
+  "error": "请求过于频繁",
+  "message": "请 60秒后再试"
+}
+```
+
+## 批量处理优化
+
+### 避免并发爆炸
+```typescript
+// ❌ 不要: 同时调用太多
+Promise.all([
+  llm.call(),
+  llm.call(),
+  llm.call()
+]);
+
+// ✅ 推荐: 串行或限流
+for (const item of list) {
+  await process(item);
+  // 小延迟避免限流
+  await sleep(100);
+}
+```
+
+## 测试 LLM 集成
+
+### Demo 模式
+```typescript
+// 不依赖真实环境
+export async function demoProcess(input: UserInput) {
+  // 使用规则模拟 LLM
+  // 使用字典模拟 HA
+  // 返回真实但不真实的响应
+}
+```
+
+### 单元测试 mock
+```typescript
+jest.mocked(llm.recognizeIntent).mockResolvedValue({
+  intent: "bath_prepare",
+  confidence: 0.99,
+  rawInput: "测试"
+});
+```
+
+## 安全考虑
+
+### 1. API Key 保护
+```typescript
+// ✅ 永远从环境变量获取
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) {
+  throw new Error("必须配置 OPENAI_API_KEY");
+}
+```
+
+### 2. 消息长度限制
+```typescript
+// 限制输入长度，防止攻击
+if (message.length > 500) {
+  message = message.slice(0, 500) + "...";
+}
+```
+
+### 3. 系统提示词注入防护
+```typescript
+// 从用户输入中移除可能的注入字符串
+function sanitizeInput(message: string): string {
+  return message.replace(/[{}[\]]/g, ""); // 简单示例
+}
+```
+
+## 可观测性
+
+### 1. Token 使用统计
+```typescript
+// TODO: 记录每次调用的 token 数
+const response = await model.invoke(prompt);
+// log: 使用了 ${response.usage} 个 token
+```
+
+### 2. 成功率监控
+```typescript
+// 记录 LLM 调用成功/失败
+// 记录意图识别置信度分布
+```
+
+## 性能监控
+
+### 响应时间
+```typescript
+const start = Date.now();
+const result = await llm.call();
+const duration = Date.now() - start;
+
+if (duration > 5000) {
+  console.warn(`[SLOW] LLM call took ${duration}ms`);
+}
+```
+
+## 版本升级指南
+
+### 从 OpenAI v3 → v4
+```typescript
+// 保持变更最小化
+// 只要接口一致，底层可替换
+```
+
+### LangChain 重大更新
+- 检查 breaking changes
+- 更新类型定义
+- 重新测试所有 Agent
+
+---
+
+**关注重点**:
+1. ✅ 始终有报错后的兜底
+2. ✅ JSON 安全解析
+3. ✅ 令牌费用控制
+4. ✅ 保持 Demo 模式可用
+
+**边缘案例**:
+- LLM 返回非 JSON
+- 网络超时
+- 频率限制
+- 长输入处理
+
+**实现状态**:
+- ✅ 已完成基础实现 (src/services/llm.ts)
+- ✅ 已有错误处理
+- ⏳ 令牌统计待添加
+- ⏳ 测试用例待补充
