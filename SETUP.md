@@ -76,12 +76,24 @@
 ### 1. 配置环境变量
 ```bash
 # 创建 .env 文件
-echo "OPENAI_API_KEY=sk-your-key" > .env
+cat > .env << EOF
+# LLM 服务（必需，二选一）
+OPENAI_API_KEY=sk-your-key
+# 或
+# ANTHROPIC_API_KEY=sk-ant-your-key
 
-# 如需真实设备控制，添加:
+# 向量模型服务（可选，独立接口）
+# EMBEDDING_API_KEY=your-embedding-key
+# EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1
+# EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
+
+# Home Assistant（可选）
 # HOME_ASSISTANT_URL=http://homeassistant.local:8123
 # HOME_ASSISTANT_TOKEN=your_token
+EOF
 ```
+
+**详细配置说明**: 查看 [docs/env-variables.md](./docs/env-variables.md)
 
 ### 2. 启动服务
 ```bash
@@ -132,12 +144,21 @@ curl -X POST http://localhost:3000/api/demo \
 
 ## 🔑 关键配置
 
-###必填环境变量
-- `OPENAI_API_KEY` - LLM API 密钥
+### 必需环境变量
+- `OPENAI_API_KEY` 或 `ANTHROPIC_API_KEY` - LLM API 密钥（二选一）
 
 ### 可选配置
-- `HOME_ASSISTANT_TOKEN` - 设备控制
-- `CACHE_STRATEGY` - 缓存策略 (context_aware 推荐)
+- **向量模型** (独立接口):
+  - `EMBEDDING_API_KEY` - 向量模型 API 密钥
+  - `EMBEDDING_BASE_URL` - 向量模型接口地址
+  - `EMBEDDING_MODEL` - 向量模型名称
+- **Home Assistant**:
+  - `HOME_ASSISTANT_URL` - HA 实例地址
+  - `HOME_ASSISTANT_TOKEN` - HA 访问令牌
+- **缓存**:
+  - `CACHE_STRATEGY` - 缓存策略 (context_aware 推荐)
+
+**注意**: LLM 和向量模型可以使用不同的接口地址，详见 [docs/env-variables.md](./docs/env-variables.md)
 
 ---
 

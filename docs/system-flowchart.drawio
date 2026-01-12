@@ -1,0 +1,115 @@
+<mxfile host="app.diagrams.net" modified="2025-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="flowchart" type="device">
+  <diagram id="jarvis-system-flow" name="JARVIS 系统流程图">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="JARVIS 多智能体智能家居系统流程图" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="user" value="用户请求&#xa;(HTTP/语音)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="50" y="100" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api-routes" value="API 路由层&#xa;(routes.ts)&#xa;&#xa;POST /api/intent&#xa;POST /api/demo&#xa;GET /api/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="50" y="220" width="150" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="middleware" value="中间件层&#xa;(middleware.ts)&#xa;&#xa;• 请求日志&#xa;• CORS&#xa;• 错误处理&#xa;• 性能监控&#xa;• 速率限制" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="50" y="360" width="150" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="orchestrator" value="Orchestrator&#xa;(协调器)&#xa;&#xa;单例模式&#xa;编排所有智能体" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="300" y="280" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="intent-agent" value="Intent Agent&#xa;(意图识别)&#xa;&#xa;• 规则匹配&#xa;• LLM 识别&#xa;• 置信度评估" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="600" y="100" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="context-agent" value="Context Agent&#xa;(状态感知)&#xa;&#xa;• 设备状态获取&#xa;• 环境信息提取&#xa;• 人在检测" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="600" y="280" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="planner-agent" value="Planner Agent&#xa;(行为规划)&#xa;&#xa;• 缓存查询&#xa;• 计划生成&#xa;• 计划验证" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="600" y="460" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="llm-service" value="LLM Service&#xa;(llm.ts)&#xa;&#xa;• OpenAI/Anthropic&#xa;• 意图识别&#xa;• 计划生成" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="900" y="100" width="150" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ha-service" value="Home Assistant&#xa;Service&#xa;(homeassistant.ts)&#xa;&#xa;• 设备状态查询&#xa;• 设备控制执行" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="900" y="280" width="150" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="cache-service" value="Cache Service&#xa;(cache.ts)&#xa;&#xa;• 计划缓存&#xa;• 相似度匹配&#xa;• 成功率追踪" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="900" y="460" width="150" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="execution" value="执行计划&#xa;(executePlan)&#xa;&#xa;• 过滤可执行步骤&#xa;• 调用 HA API&#xa;• 收集执行结果" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="300" y="460" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="response" value="响应返回&#xa;&#xa;• intent&#xa;• context&#xa;• plan&#xa;• execution&#xa;• cacheHit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="50" y="560" width="150" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeWidth=2" edge="1" parent="1" source="user" target="api-routes">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeWidth=2" edge="1" parent="1" source="api-routes" target="middleware">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" value="processUserIntent()" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;fontSize=11" edge="1" parent="1" source="middleware" target="orchestrator">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow4" value="步骤1: 意图识别" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;fontSize=11" edge="1" parent="1" source="orchestrator" target="intent-agent">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow5" value="步骤2: 获取状态" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;fontSize=11" edge="1" parent="1" source="orchestrator" target="context-agent">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow6" value="步骤3: 生成计划" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;fontSize=11" edge="1" parent="1" source="orchestrator" target="planner-agent">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow7" value="步骤4: 执行" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;fontSize=11" edge="1" parent="1" source="orchestrator" target="execution">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow8" value="调用 LLM" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1.5;fontSize=10;dashed=1" edge="1" parent="1" source="intent-agent" target="llm-service">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow9" value="查询 HA" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1.5;fontSize=10;dashed=1" edge="1" parent="1" source="context-agent" target="ha-service">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow10" value="查询缓存" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1.5;fontSize=10;dashed=1" edge="1" parent="1" source="planner-agent" target="cache-service">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow11" value="调用 LLM" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1.5;fontSize=10;dashed=1" edge="1" parent="1" source="planner-agent" target="llm-service">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow12" value="执行命令" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1.5;fontSize=10;dashed=1" edge="1" parent="1" source="execution" target="ha-service">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow13" value="返回结果" style="endArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;fontSize=11" edge="1" parent="1" source="execution" target="response">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="图例" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1150" y="100" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-entry" value="入口/出口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1150" y="140" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-orchestrator" value="协调器" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1150" y="180" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-agent" value="智能体" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1150" y="220" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-service" value="服务层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1150" y="260" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-arrow" value="实线: 主流程&#xa;虚线: 服务调用" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10" vertex="1" parent="1">
+          <mxGeometry x="1150" y="300" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="flow-detail" value="详细流程说明:&#xa;&#xa;1. 用户通过 HTTP API 发送请求&#xa;2. 中间件处理 (日志、CORS、验证)&#xa;3. Orchestrator 协调处理:&#xa;   - Intent Agent: 识别用户意图&#xa;   - Context Agent: 获取设备状态&#xa;   - Planner Agent: 生成执行计划&#xa;4. 执行计划 (调用 HA API)&#xa;5. 返回完整结果" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=10;spacingTop=5" vertex="1" parent="1">
+          <mxGeometry x="1150" y="360" width="400" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="cache-flow" value="缓存机制:&#xa;&#xa;• Planner Agent 查询缓存&#xa;• 命中: 直接返回计划&#xa;• 未命中: LLM 生成新计划&#xa;• 执行后更新缓存成功率" style="text;html=1;strokeColor=#666666;fillColor=#fff2cc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=10;spacingTop=5" vertex="1" parent="1">
+          <mxGeometry x="1150" y="580" width="400" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="error-handling" value="错误处理:&#xa;&#xa;• LLM 失败 → 规则兜底&#xa;• HA 失败 → 演示模式&#xa;• 设备不存在 → 标记警告&#xa;• 所有错误可追溯" style="text;html=1;strokeColor=#666666;fillColor=#e1d5e7;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=10;spacingTop=5" vertex="1" parent="1">
+          <mxGeometry x="1150" y="720" width="400" height="120" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

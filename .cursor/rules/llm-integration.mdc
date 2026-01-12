@@ -1,10 +1,7 @@
 ---
-title: LLM 集成规范
 description: LangChain 和聊天模型使用的最佳实践
-scope: src/services/llm.ts, src/agents/
-priority: high
+alwaysApply: false
 ---
-
 # LLM 集成规范
 
 ## Prompt 工程原则

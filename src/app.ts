@@ -79,8 +79,23 @@ async function startServer() {
     console.log("✅ 组件初始化完成");
 
     // 检查环境配置
-    if (!process.env.OPENAI_API_KEY) {
-      console.warn("⚠️  警告: 未检测到 OPENAI_API_KEY");
+    const llmProvider = process.env.LLM_PROVIDER?.toLowerCase();
+    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
+
+    if (!hasAnthropic && !hasOpenAI) {
+      console.warn("⚠️  警告: 未检测到 LLM API Key (OPENAI_API_KEY 或 ANTHROPIC_API_KEY)");
+      console.warn("   系统需要至少配置一个 LLM 服务才能正常运行");
+    } else if (llmProvider === "anthropic" && !hasAnthropic) {
+      console.warn("⚠️  警告: LLM_PROVIDER=anthropic 但未配置 ANTHROPIC_API_KEY");
+    } else if (llmProvider === "openai" && !hasOpenAI) {
+      console.warn("⚠️  警告: LLM_PROVIDER=openai 但未配置 OPENAI_API_KEY");
+    } else if (hasAnthropic && hasOpenAI && !llmProvider) {
+      console.log("ℹ️  检测到两个 LLM API Key，建议设置 LLM_PROVIDER 明确指定使用哪个");
+    }
+
+    if (!process.env.EMBEDDING_API_KEY || !process.env.EMBEDDING_BASE_URL || !process.env.EMBEDDING_MODEL) {
+      console.log("ℹ️  Embeddings 服务未配置（可选功能）");
     }
 
     if (!process.env.HOME_ASSISTANT_TOKEN) {

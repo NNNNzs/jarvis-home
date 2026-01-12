@@ -11,11 +11,12 @@ import { PlannerAgent } from "./agents/planner.agent.js";
 import { LLMService } from "./services/llm.js";
 import { HomeAssistantService } from "./services/homeassistant.js";
 import { CacheService } from "./services/cache.js";
-import { 
-  UserInput, 
-  Intent, 
-  ContextState, 
-  Plan, 
+import { EmbeddingService } from "./services/embeddings.js";
+import {
+  UserInput,
+  Intent,
+  ContextState,
+  Plan,
   ExecutionResult,
   ExecutionStatus,
   DeviceState,
@@ -24,12 +25,14 @@ import {
 import { getLLMService, setLLMService } from "./services/llm.js";
 import { getHAService, setHAService } from "./services/homeassistant.js";
 import { getCacheService, setCacheService } from "./services/cache.js";
+import { getEmbeddingService, setEmbeddingService } from "./services/embeddings.js";
 
 export interface SystemStatus {
   components: {
     llm: boolean;
     ha: boolean;
     cache: boolean;
+    embeddings: boolean;
   };
   stats: {
     totalRequests: number;
@@ -57,6 +60,7 @@ export class Orchestrator {
   private llmService: LLMService | null = null;
   private haService: HomeAssistantService | null = null;
   private cacheService: CacheService | null = null;
+  private embeddingService: EmbeddingService | null = null;
 
   // 状态统计
   private stats = {
@@ -66,7 +70,7 @@ export class Orchestrator {
     errorCount: 0
   };
 
-  private constructor() {}
+  private constructor() { }
 
   /**
    * 获取单例实例
@@ -83,16 +87,41 @@ export class Orchestrator {
    */
   async initialize(): Promise<void> {
     // 1. 初始化 LLM 服务
-    if (process.env.OPENAI_API_KEY) {
+    // 通过 LLM_PROVIDER 环境变量明确指定使用哪个提供商
+    // 如果未指定，则按优先级：anthropic > openai
+    const llmProvider = process.env.LLM_PROVIDER?.toLowerCase() ||
+      (process.env.ANTHROPIC_API_KEY ? "anthropic" :
+        process.env.OPENAI_API_KEY ? "openai" : null);
+
+    if (llmProvider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
+      const modelName = process.env.LLM_MODEL || "claude-3-5-sonnet-20241022";
       this.llmService = new LLMService({
-        provider: "openai",
-        model: process.env.LLM_MODEL || "gpt-4o-mini",
-        apiKey: process.env.OPENAI_API_KEY,
-        baseURL: process.env.OPENAI_BASE_URL,
+        provider: "anthropic",
+        model: modelName,
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        baseURL: process.env.ANTHROPIC_BASE_URL, // 支持自定义 baseURL（如通过代理）
         temperature: 0.3,
         maxRetries: 3
       });
       setLLMService(this.llmService);
+      console.log(`✅ LLM 服务已初始化: Anthropic Claude (模型: ${modelName})`);
+    }
+    else if (llmProvider === "openai" && process.env.OPENAI_API_KEY) {
+      const modelName = process.env.LLM_MODEL || "gpt-4o-mini";
+      this.llmService = new LLMService({
+        provider: "openai",
+        model: modelName,
+        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: process.env.OPENAI_BASE_URL, // 支持自定义 baseURL
+        temperature: 0.3,
+        maxRetries: 3
+      });
+      setLLMService(this.llmService);
+      console.log(`✅ LLM 服务已初始化: OpenAI (模型: ${modelName})`);
+    } else if (!llmProvider) {
+      console.warn("⚠️  警告: 未检测到 LLM API Key，系统无法正常运行");
+    } else {
+      console.warn(`⚠️  警告: LLM_PROVIDER=${llmProvider} 但未配置对应的 API Key`);
     }
 
     // 2. 初始化 HA 服务 (可选)
@@ -115,7 +144,28 @@ export class Orchestrator {
       }
     }
 
-    // 3. 初始化缓存服务
+    // 3. 初始化 Embeddings 服务 (可选，用于向量化和相似度搜索)
+    if (process.env.EMBEDDING_API_KEY && process.env.EMBEDDING_BASE_URL && process.env.EMBEDDING_MODEL) {
+      try {
+        this.embeddingService = new EmbeddingService({
+          provider: (process.env.EMBEDDING_PROVIDER as "openai" | "siliconflow") || "openai",
+          model: process.env.EMBEDDING_MODEL!,
+          apiKey: process.env.EMBEDDING_API_KEY,
+          baseURL: process.env.EMBEDDING_BASE_URL,
+          dimensions: process.env.EMBEDDING_DIMENSIONS
+            ? parseInt(process.env.EMBEDDING_DIMENSIONS)
+            : undefined
+        });
+        setEmbeddingService(this.embeddingService);
+        console.log("✅ Embeddings 服务已初始化");
+      } catch (error) {
+        console.warn("⚠️ Embeddings 服务初始化失败:", (error as Error).message);
+      }
+    } else {
+      console.log("ℹ️  Embeddings 服务未配置（可选功能）");
+    }
+
+    // 4. 初始化缓存服务
     this.cacheService = new CacheService({
       strategy: (process.env.CACHE_STRATEGY as CacheStrategy) || CacheStrategy.CONTEXT_AWARE,
       ttl: parseInt(process.env.CACHE_TTL || "3600"), // 1小时
@@ -123,12 +173,12 @@ export class Orchestrator {
     });
     setCacheService(this.cacheService);
 
-    // 4. 创建智能体
+    // 5. 创建智能体
     if (this.llmService) {
       this.intentAgent = new IntentAgent({ llm: this.llmService });
-      this.plannerAgent = new PlannerAgent({ 
-        llm: this.llmService, 
-        cache: this.cacheService 
+      this.plannerAgent = new PlannerAgent({
+        llm: this.llmService,
+        cache: this.cacheService
       });
     }
 
@@ -172,7 +222,7 @@ export class Orchestrator {
     }
 
     const { plan, cacheHit } = await this.plannerAgent.execute(intent, context);
-    
+
     if (cacheHit) {
       this.stats.cacheHits++;
       console.log(`[Orchestrator] 缓存命中: ${plan.planId}`);
@@ -182,7 +232,7 @@ export class Orchestrator {
 
     // 步骤4: 执行计划
     const execution = await this.executePlan(plan);
-    
+
     // 更新统计
     if (execution.status === ExecutionStatus.SUCCESS) {
       this.stats.successCount++;
@@ -212,7 +262,7 @@ export class Orchestrator {
   private async executePlan(plan: Plan): Promise<ExecutionResult> {
     const startTime = Date.now();
     const results: any[] = [];
-    
+
     // 如果没有HA服务，进入演示模式
     if (!this.haService) {
       return {
@@ -232,7 +282,7 @@ export class Orchestrator {
     // 实际执行
     try {
       // 过滤掉描述中包含"跳过"或"警告"的步骤
-      const executableSteps = plan.steps.filter(s => 
+      const executableSteps = plan.steps.filter(s =>
         !s.description.includes("跳过") && !s.description.includes("警告")
       );
 
@@ -282,7 +332,7 @@ export class Orchestrator {
       };
     } catch (error) {
       console.error("执行失败:", error);
-      
+
       return {
         planId: plan.planId,
         status: ExecutionStatus.FAILED,
@@ -430,6 +480,7 @@ export class Orchestrator {
     const llmOk = this.llmService ? await this.llmService.healthCheck().catch(() => false) : false;
     const haOk = this.haService ? await this.haService.healthCheck().catch(() => false) : false;
     const cacheOk = this.cacheService !== null;
+    const embeddingsOk = this.embeddingService ? await this.embeddingService.healthCheck().catch(() => false) : false;
 
     const total = this.stats.totalRequests || 1;
     const successRate = (this.stats.successCount / total) * 100;
@@ -438,7 +489,8 @@ export class Orchestrator {
       components: {
         llm: llmOk,
         ha: haOk,
-        cache: cacheOk
+        cache: cacheOk,
+        embeddings: embeddingsOk
       },
       stats: {
         totalRequests: this.stats.totalRequests,

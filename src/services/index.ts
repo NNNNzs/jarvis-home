@@ -7,3 +7,4 @@
 export * from "./llm.js";
 export * from "./homeassistant.js";
 export * from "./cache.js";
+export * from "./embeddings.js";

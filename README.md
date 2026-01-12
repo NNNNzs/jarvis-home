@@ -16,12 +16,15 @@
 
 **用户输入**: "我要洗澡了"  
 **系统响应**:
+
 - ✅ 开启燃气热水器预热
 - ✅ 打开浴霸
 - ✅ 打开浴室灯
 - ✅ (可选) 播放音乐、调节水温
 
 ## 📐 架构概览
+
+**详细流程图**: 查看 [docs/system-flowchart.drawio](./docs/system-flowchart.drawio) (使用 [draw.io](https://app.diagrams.net/) 打开)
 
 ```
 ┌──────────────┐     ┌─────────────────────┐
@@ -46,11 +49,11 @@
 ## 🛠️ 技术栈
 
 - **语言**: TypeScript / Node.js
-- **LLM框架**: LangChain + LangGraph
-- **API框架**: Express
+- **LLM 框架**: LangChain + LangGraph
+- **API 框架**: Express
 - **状态管理**: Home Assistant
 - **验证**: Zod
-- **HTTP客户端**: Axios
+- **HTTP 客户端**: Axios
 - **缓存**: Redis (可选) / 内存
 
 ## 📁 项目结构
@@ -92,17 +95,30 @@ pnpm install
 
 ### 2. 配置环境变量
 
-在项目根目录创建 `.env` 文件，填入以下配置：
+在项目根目录创建 `.env` 文件。
 
-**必需配置**:
+**最小配置** (仅测试):
+
 ```bash
-# OpenAI API Key (必须)
+# LLM 服务（必需，二选一）
 OPENAI_API_KEY=sk-your-api-key-here
+# 或
+ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
-**可选配置** (如需真实设备控制):
+**完整配置** (生产环境):
+
 ```bash
-# Home Assistant
+# LLM 服务
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+ANTHROPIC_BASE_URL=  # 可选，自定义接口地址
+
+# 向量模型服务（独立接口，可选）
+EMBEDDING_API_KEY=your-embedding-key-here
+EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1
+EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
+
+# Home Assistant（可选）
 HOME_ASSISTANT_URL=http://homeassistant.local:8123
 HOME_ASSISTANT_TOKEN=your_ha_token_here
 
@@ -112,6 +128,8 @@ NODE_ENV=development
 ```
 
 **详细配置说明**: 查看 [docs/env-variables.md](./docs/env-variables.md)
+
+**重要**: LLM 和向量模型可以使用不同的接口地址，详见环境变量文档。
 
 ### 3. 配置 Home Assistant
 
@@ -147,9 +165,11 @@ curl -X POST http://localhost:3000/api/intent \
 ## 📋 API 端点
 
 ### POST /api/intent
+
 处理用户意图输入
 
 **请求体**:
+
 ```json
 {
   "message": "我要洗澡了"
@@ -157,6 +177,7 @@ curl -X POST http://localhost:3000/api/intent \
 ```
 
 **响应**:
+
 ```json
 {
   "success": true,
@@ -167,22 +188,26 @@ curl -X POST http://localhost:3000/api/intent \
 ```
 
 ### GET /api/status
+
 系统状态检查
 
 ## 🎯 开发路线图
 
-### Phase 1: MVP (1周)
+### Phase 1: MVP (1 周)
+
 - ✅ 基础项目结构
 - ✅ Home Assistant 接入
 - ✅ 单意图支持 ("我要洗澡了")
 - ⏳ 基础流程执行
 
-### Phase 2: 智能化 (2周)
+### Phase 2: 智能化 (2 周)
+
 - ⏳ 多 Agent 协作
 - ⏳ 上下文感知
 - ⏳ 流程缓存机制
 
 ### Phase 3: 高级功能
+
 - ⏳ 多意图支持
 - ⏳ 学习型偏好
 - ⏳ 小爱音箱集成
@@ -190,11 +215,14 @@ curl -X POST http://localhost:3000/api/intent \
 ## ⚠️ 重要说明
 
 ### 小爱音箱接入
-由于小爱音箱没有官方开放API，推荐方案：
-- **米家场景 → Webhook**: 在米家App中创建场景，触发HTTP请求到本系统
+
+由于小爱音箱没有官方开放 API，推荐方案：
+
+- **米家场景 → Webhook**: 在米家 App 中创建场景，触发 HTTP 请求到本系统
 - 固定话术触发，如："我要洗澡了"
 
 ### 安全限制
+
 - 白名单设备控制
 - 高风险操作需要确认
 - 所有操作可追溯、可回滚
@@ -202,18 +230,22 @@ curl -X POST http://localhost:3000/api/intent \
 ## 🔧 开发配置
 
 ### Cursor Rules
+
 项目已配置 `.cursor/rules/` 目录，包含：
+
 - 代码规范
 - 提交信息规范
 - 架构决策记录
 
 ### 环境变量
+
 - 创建 `.env` 文件 (参考 [docs/env-variables.md](./docs/env-variables.md))
 - **重要**: `.env` 文件已加入 `.gitignore`，不要提交到版本控制
 
 ## 🤝 贡献
 
 这是一个"工程味很正"的项目，欢迎：
+
 - 提交 Issue
 - 提交 PR
 - 分享使用场景
@@ -221,6 +253,7 @@ curl -X POST http://localhost:3000/api/intent \
 ## 📝 需求文档
 
 详细的需求文档和设计文档请参考项目内的讨论记录，包含了完整的：
+
 - 架构设计
 - 技术选型依据
 - 实施路线图

@@ -6,13 +6,15 @@
  */
 
 import { ChatOpenAI } from "@langchain/openai";
+import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { AIMessage, HumanMessage, BaseMessage } from "@langchain/core/messages";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { z } from "zod";
 import { Intent, ContextState, Plan, ActionStep, IntentType } from "../types/index.js";
 
 export interface LLMConfig {
-  provider: "openai" | "other";
+  provider: "openai" | "anthropic";
   model: string;
   temperature?: number;
   maxRetries?: number;
@@ -25,7 +27,7 @@ export interface LLMConfig {
  * 处理所有与 LLM 的交互
  */
 export class LLMService {
-  private model: ChatOpenAI;
+  private model: BaseChatModel;
   private config: LLMConfig;
 
   constructor(config: LLMConfig) {
@@ -35,15 +37,35 @@ export class LLMService {
       throw new Error("API key 必须提供");
     }
 
-    this.model = new ChatOpenAI({
-      modelName: config.model,
-      temperature: config.temperature ?? 0.3,
-      maxRetries: config.maxRetries ?? 3,
-      apiKey: config.apiKey,
-      configuration: {
-        baseURL: config.baseURL
-      }
-    });
+    // 根据 provider 创建相应的模型实例
+    if (config.provider === "anthropic") {
+      this.model = new ChatAnthropic({
+        modelName: config.model || "claude-3-5-sonnet-20241022",
+        temperature: config.temperature ?? 0.3,
+        maxRetries: config.maxRetries ?? 3,
+        apiKey: config.apiKey,
+        // 支持自定义 baseURL（如通过代理或兼容 API）
+        ...(config.baseURL && {
+          configuration: {
+            baseURL: config.baseURL
+          }
+        })
+      });
+    } else {
+      // 默认使用 OpenAI
+      this.model = new ChatOpenAI({
+        modelName: config.model || "gpt-4o-mini",
+        temperature: config.temperature ?? 0.3,
+        maxRetries: config.maxRetries ?? 3,
+        apiKey: config.apiKey,
+        // 支持自定义 baseURL
+        ...(config.baseURL && {
+          configuration: {
+            baseURL: config.baseURL
+          }
+        })
+      });
+    }
   }
 
   /**
@@ -193,8 +215,8 @@ export class LLMService {
    * 结合历史经验进行优化
    */
   async generateContextualPlan(
-    intent: Intent, 
-    context: ContextState, 
+    intent: Intent,
+    context: ContextState,
     similarPlans?: Plan[]
   ): Promise<Plan> {
     if (!similarPlans || similarPlans.length === 0) {
@@ -202,7 +224,7 @@ export class LLMService {
     }
 
     // 使用相似计划作为few-shot示例
-    const examples = similarPlans.map(plan => 
+    const examples = similarPlans.map(plan =>
       `示例计划（${plan.intent}）:\n${JSON.stringify(plan, null, 2)}`
     ).join("\n\n");
 
@@ -215,15 +237,15 @@ ${examples}
 
 当前状态:
 ${JSON.stringify({
-  time: context.timeOfDay,
-  presence: context.presence,
-  temperature: context.temperature,
-  devices: context.devices.map(d => ({
-    id: d.entityId,
-    name: d.entityName,
-    state: d.state
-  }))
-})}
+        time: context.timeOfDay,
+        presence: context.presence,
+        temperature: context.temperature,
+        devices: context.devices.map(d => ({
+          id: d.entityId,
+          name: d.entityName,
+          state: d.state
+        }))
+      })}
 
 请生成优化后的计划，输出JSON格式。`],
       ["human", `用户意图: ${intent.intent}, 原始输入: ${intent.rawInput}`]
@@ -254,11 +276,11 @@ ${JSON.stringify({
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim();
-    
+
     // 确保是JSON对象
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
-    
+
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       cleaned = cleaned.substring(firstBrace, lastBrace + 1);
     }

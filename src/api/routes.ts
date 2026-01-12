@@ -235,4 +235,28 @@ router.get("/devices", async (req: Request, res: Response) => {
   }
 });
 
+router.get('/test', async (req: Request, res: Response) => {
+  let interval: NodeJS.Timeout;
+  const stream = new ReadableStream({
+    start(controller) {
+      interval = setInterval(() => {
+        controller.enqueue('Hello, world!');
+      }, 1000);
+      setTimeout(() => {
+        clearInterval(interval);
+        controller.close();
+      }, 10000);
+    },
+    cancel() {
+      clearInterval(interval);
+    },
+  });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  res.flushHeaders();
+
+});
+
 export default router;

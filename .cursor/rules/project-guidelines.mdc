@@ -148,11 +148,36 @@ curl http://localhost:3000/api/status
 
 ## 🔄 关键工作流程
 
+**详细流程图**: 参见 `docs/system-flowchart.drawio`
+
 ```mermaid
 用户输入 → Intent Agent → Context Agent → Planner Agent → 执行 → 缓存
      ↓          ↓            ↓              ↓            ↓       ↓
    验证      意图识别     状态获取      计划生成     HA API   存储
 ```
+
+### 流程图维护规则
+
+⚠️ **重要**: 当系统流程发生变更时，必须同步更新流程图！
+
+**流程图位置**: `docs/system-flowchart.drawio`
+
+**需要更新流程图的场景**:
+1. 新增或删除智能体 (Agent)
+2. 新增或删除服务 (Service)
+3. 修改 Orchestrator 的处理流程
+4. 新增或修改 API 端点
+5. 修改中间件处理逻辑
+6. 新增或修改缓存机制
+7. 修改错误处理流程
+
+**更新流程**:
+1. 使用 [draw.io](https://app.diagrams.net/) 打开 `docs/system-flowchart.drawio`
+2. 根据代码变更更新流程图
+3. 确保流程图与代码实现保持一致
+4. 提交代码时同时提交更新的流程图
+
+详见 `.cursor/rules/flowchart-maintenance.mdc`
 
 ### 各智能体职责
 
